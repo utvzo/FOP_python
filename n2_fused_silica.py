@@ -9,6 +9,7 @@ Created on Mon Nov  3 18:45:21 2025
 import numpy as np
 import matplotlib.pyplot as plt
 import sympy as sp
+from scipy.constants import speed_of_light
 
 CHI_01 = 0.6962
 CHI_02 = 0.4079
@@ -18,44 +19,34 @@ LAMBDA_2 = 0.1162
 LAMBDA_3 = 9.8962
 
 # %%
+#because the original function of course just shit itself to death...
 def sellmeier_dispersion(lambda_um):
-    """
-    Returns:
-      n(λ)
-      D(λ)  in ps/(nm·km)
-    """
+    c0 = speed_of_light  # m/s
 
-
-    # physical constants
-    c0 = 299792458  # m/s
-
-    # Sellmeier coefficients for fused silica
+    # sellmeier coeff for FS 
     B1, B2, B3 = 0.6961663, 0.4079426, 0.8974794
     C1, C2, C3 = 0.0684043**2, 0.1162414**2, 9.896161**2
 
-    λ_um = np.array(lambda_um)
-    λ_m = λ_um * 1e-6  # µm → m
+    lam_um = np.array(lambda_um)
+    lam_m = lam_um * 1e-6  # um to m
 
-    # refractive index
+    #n2 formula
     n_sq = (
         1
-        + B1 * λ_um**2 / (λ_um**2 - C1)
-        + B2 * λ_um**2 / (λ_um**2 - C2)
-        + B3 * λ_um**2 / (λ_um**2 - C3)
-    )
+        + B1 * lam_um**2 / (lam_um**2 - C1)
+        + B2 * lam_um**2 / (lam_um**2 - C2)
+        + B3 * lam_um**2 / (lam_um**2 - C3)
+        )
     n = np.sqrt(n_sq)
+    # numerical gradients
+    dn_dlam = np.gradient(n, lam_m)
+    d2n_dlam2 = np.gradient(dn_dlam, lam_m)
 
-    # derivatives wrt λ in meters
-    dn_dλ = np.gradient(n, λ_m)
-    d2n_dλ2 = np.gradient(dn_dλ, λ_m)
+    # MAT DISP
+    D_SI = -(lam_m / c0) * d2n_dlam2   # s/m
 
-    # material dispersion in s/m
-    D_SI = -(λ_m / c0) * d2n_dλ2   # s/m
-
-    # convert s/m → ps/(nm·km)
-    D_ps = D_SI * 1e12 / 1e9 * 1e-3  # = *1e0 → no change numerically
-
-    # actually the full conversion is simply:
+    # conversion magic vol. 34674
+    D_ps = D_SI * 1e12 / 1e9 * 1e-3  
     D_ps = D_SI * 1e6
 
     return n, D_ps

@@ -162,6 +162,7 @@ def plot_B_n_f_V(lambda_range, B_list, n1, n2, a):
         ax1.plot(f_range_THz[mask], B_mode[mask], label=f"m={m}")
     ax1.set_xlabel("Frequency f [THz]")
     ax1.set_ylabel("Normalized propagation constant B")
+    ax1.set_ylim(0,1)
     ax1.legend()
     ax1.grid(True)
     ax1.set_title("B vs f")
@@ -181,13 +182,20 @@ def plot_B_n_f_V(lambda_range, B_list, n1, n2, a):
     
     # n_eff - f/V - plot
     ax2 = axes[1]
+    #axes min max lists
+    limarrmin = []
+    limarrmax = []
     for m, B_mode in enumerate(B_list):
         B_mode = np.array(B_mode)
         mask = ~np.isnan(B_mode)
         n_eff_mode = np.sqrt(B_mode*(n1**2 - n2**2) + n2**2)
         ax2.plot(f_range_THz[mask], n_eff_mode[mask], label=f"m={m}")
+        limarrmin.append(min(n_eff_mode[mask]))
+        limarrmax.append(max(n_eff_mode[mask]))
     ax2.set_xlabel("Frequency f [THz]")
     ax2.set_ylabel("Effective index n_eff")
+    #determines maximum and minimum for axes
+    ax2.set_ylim(min(limarrmin),max(limarrmax))
     ax2.legend()
     ax2.set_title("n_eff vs f")
     ax2.grid(True)
@@ -221,6 +229,8 @@ def plot_H_E(x, Hy, Ex, Ez, lam, mode_number):
     plt.plot(x*1e9, Ez/Nmax, label="Ez")
     plt.xlabel("x [nm]")
     plt.ylabel("Field amplitude (a. u.)")
+    plt.xlim(min(x)*1e9,max(x)*1e9)
+    plt.ylim(-1,1)
     plt.title(f"TM{mode_number} Field Distribution for λ = {lam} m")
     plt.legend()
     plt.grid(True)
@@ -317,6 +327,8 @@ if __name__ == "__main__":
         plt.plot(lam*1e6, n_g, label=label)
     plt.xlabel("λ [µm]")
     plt.ylabel("Group index n_g")
+    plt.xlim(1.015,2.485)
+    plt.ylim(1.45,1.495)
     plt.legend()
     plt.grid(True)
     plt.title("Group index n_g(λ)")
@@ -326,9 +338,11 @@ if __name__ == "__main__":
     for label in results:
         lam = results[label]["lam"]
         Wlam = results[label]["W"]
-        plt.plot(lam*1e6, Wlam, label=label)
+        plt.plot(lam*1e6, Wlam*1e6, label=label)
     plt.xlabel("λ [µm]")
     plt.ylabel("W_λ [ps/(nm km)]")
+    plt.xlim(1.015,2.485)
+    plt.ylim(-55,0)
     plt.legend()
     plt.grid(True)
     plt.title("Waveguide dispersion W_λ(λ)")
@@ -351,7 +365,7 @@ if __name__ == "__main__":
         
         Wlam = results[label]["W"]               # WD
         _, M_ps_local = fs.sellmeier_dispersion(lam_um_local) #interpolate
-        C_results[label] = Wlam + M_ps_local     # CD
+        C_results[label] = Wlam*1e6 + M_ps_local     # CD
         
     #plot
     fig, ax1 = plt.subplots(figsize=(10,6))
@@ -362,16 +376,29 @@ if __name__ == "__main__":
 
     ax1.set_xlabel("λ [µm]")
     ax1.set_ylabel("M_λ, C_λ [ps/(km·nm)]")
+    ax1.set_xlim(1.015,2.485)
+    ax1.set_ylim(-80,80)
     ax1.grid(True)
 
     #Wlambda
     ax2 = ax1.twinx()
+    colorarray = ['orange', 'green']
+
+    #fixes the color mapping (just dont ask pls...)
+    label_colors = {label: colorarray[i % len(colorarray)] 
+                for i, label in enumerate(results)}
+
     for label in results:
         lam_um_local = results[label]["lam"] * 1e6
-        ax2.plot(lam_um_local, results[label]["W"], "--", label=f"Wλ {label}")
-
-    ax2.set_ylabel("Wλ [ps/(km·nm)]")
-
+        ax2.plot(
+            lam_um_local,
+            results[label]["W"] * 1e6,
+            "--",
+            label=f"W_λ {label}",
+            color=label_colors[label]
+        )
+    ax2.set_ylabel("W_λ [ps/(km·nm)]")
+    ax2.set_ylim(-80,80)
     #cosmetuics
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
