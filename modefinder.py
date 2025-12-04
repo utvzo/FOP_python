@@ -3,6 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import root_scalar
 
+import n2_fused_silica as fs
+
 # CONST ASSIGNMENT D
 a = 250e-9       # WAVEGUIDE HALF-WIDTH
 n1 = 3.5         # CORE 
@@ -312,7 +314,7 @@ if __name__ == "__main__":
     for label in results:
         lam = results[label]["lam"]
         n_g = results[label]["n_g"]
-    plt.plot(lam*1e6, n_g, label=label)
+        plt.plot(lam*1e6, n_g, label=label)
     plt.xlabel("λ [µm]")
     plt.ylabel("Group index n_g")
     plt.legend()
@@ -331,3 +333,79 @@ if __name__ == "__main__":
     plt.grid(True)
     plt.title("Waveguide dispersion W_λ(λ)")
     plt.show()
+    
+    
+    ################################ ASSIGNMENT F ################################
+
+    # wavelength um
+    lambda_um = lambda_range_2 * 1e6
+    
+    # n2fs reference
+    n_silica, M_ps = fs.sellmeier_dispersion(lambda_um)
+    
+    # CD 
+    C_results = {}
+    for label in results:
+        lam = results[label]["lam"]             
+        lam_um_local = lam * 1e6
+        
+        Wlam = results[label]["W"]               # WD
+        _, M_ps_local = fs.sellmeier_dispersion(lam_um_local) #interpolate
+        C_results[label] = Wlam + M_ps_local     # CD
+        
+    #plot
+    fig, ax1 = plt.subplots(figsize=(10,6))
+    ax1.plot(lambda_um, M_ps, label="M_λ", linewidth=2)
+    for label in C_results:
+        lam_um_local = results[label]["lam"] * 1e6
+        ax1.plot(lam_um_local, C_results[label], linewidth=2, label=f"C_λ {label}")
+
+    ax1.set_xlabel("λ [µm]")
+    ax1.set_ylabel("M_λ, C_λ [ps/(km·nm)]")
+    ax1.grid(True)
+
+    #Wlambda
+    ax2 = ax1.twinx()
+    for label in results:
+        lam_um_local = results[label]["lam"] * 1e6
+        ax2.plot(lam_um_local, results[label]["W"], "--", label=f"Wλ {label}")
+
+    ax2.set_ylabel("Wλ [ps/(km·nm)]")
+
+    #cosmetuics
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines1 + lines2, labels1 + labels2, loc="lower right")
+
+    plt.title("Material / waveguide / chromatic dispersion")
+    plt.tight_layout()
+    plt.show()
+    
+    
+    
+    
+    #TEST
+    
+    for label in results:
+        W = np.array(results[label]['W'])
+        print(f"{label}: W_min={np.nanmin(W):.4e}, max={np.nanmax(W):.4e}, nans={np.isnan(W).sum()} \n")
+
+    
+    for label in results:
+        C = np.array(C_results[label])
+        print(f"{label}: C_min={np.nanmin(C):.4e}, max={np.nanmax(C):.4e}, mean={np.nanmean(C):.4e} \n")
+    
+   
+    labels = list(results.keys())
+    if len(labels) == 2:
+        C1 = C_results[labels[0]]
+        C2 = C_results[labels[1]]
+        lam_um = results[labels[0]]['lam'] * 1e6
+        plt.figure()
+        plt.plot(lam_um, C2 - C1)
+        plt.xlabel("λ [µm]")
+        plt.ylabel("C(smallcore)-C(bigcore) [ps/(nm·km)]")
+        plt.title("Delta CD curve")
+        plt.grid(True)
+        plt.show()
+    
